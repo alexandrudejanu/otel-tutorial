@@ -96,8 +96,9 @@ uv run opentelemetry-instrument python app.py
 
 Then go to [Prometheus](http://localhost:9090/) and run the query `http_server_duration_milliseconds_count` to see metrics.
 
+---
 
-### Add Collector: App → Collector → Jaeger (traces) + Prometheus (metrics)
+### Collector: App → Collector → Jaeger (traces) + Prometheus (metrics)
 
 * The collector is a headless service: it receives, processes, and exports data
 
