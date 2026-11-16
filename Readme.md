@@ -92,3 +92,25 @@ uv run opentelemetry-instrument python app.py
 ```
 
 Then go to [Prometheus](http://localhost:9090/) and run the query `http_server_duration_milliseconds_count` to see metrics.
+
+
+### Add Collector: App → Collector → Jaeger (traces) + Prometheus (metrics)
+
+* The collector is a headless service: it receives, processes, and exports data
+
+```bash
+# start jaeger and prometheus as before, 
+# and the collector
+docker compose -f docker-compose-otel-collector.yaml up -d
+
+OTEL_SERVICE_NAME=otel-tutorial \
+OTEL_TRACES_EXPORTER=otlp \
+OTEL_METRICS_EXPORTER=otlp \
+OTEL_LOGS_EXPORTER=none \
+OTEL_METRIC_EXPORT_INTERVAL=5000 \
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317 \
+uv run opentelemetry-instrument python app.py
+
+# stop 
+docker compose -f docker-compose-otel-collector.yaml down
+```
