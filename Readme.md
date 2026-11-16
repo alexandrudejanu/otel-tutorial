@@ -119,6 +119,18 @@ docker compose -f docker-compose-otel-collector.yaml down
 
 ---
 
-### ### Collector: App → Collector → Jaeger (traces) + Prometheus (metrics) + Loki (logs)
+### Collector: App → Collector → Jaeger (traces) + Prometheus (metrics) + Loki (logs)
 
-Uncomment  the lines from otelcol-config.yml to enable the Loki exporter 
+Uncomment the lines from `otel-collector-config.yml` (to enable the Loki exporter) and from docker-compose-otel-collector.yaml (to start Loki and  Grafana). 
+
+```bash
+OTEL_SERVICE_NAME=otel-tutorial \
+OTEL_TRACES_EXPORTER=otlp \
+OTEL_METRICS_EXPORTER=otlp \
+OTEL_LOGS_EXPORTER=otlp \
+OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=true \
+OTEL_PYTHON_LOG_LEVEL=info \
+OTEL_METRIC_EXPORT_INTERVAL=5000 \
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317 \
+uv run opentelemetry-instrument python app.py
+```
