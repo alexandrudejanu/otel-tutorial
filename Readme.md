@@ -47,8 +47,6 @@ docker run --rm --name jaeger -p 16686:16686 -p 4317:4317 -p 4318:4318 jaegertra
 # Then run the app with 
 # OTEL_TRACES_EXPORTER set to otlp and 
 # OTEL_EXPORTER_OTLP_ENDPOINT set to the Jaeger endpoint.
-
-
 OTEL_SERVICE_NAME=otel-tutorial \
 OTEL_TRACES_EXPORTER=otlp \
 OTEL_METRICS_EXPORTER=none \
@@ -118,3 +116,9 @@ uv run opentelemetry-instrument python app.py
 # stop 
 docker compose -f docker-compose-otel-collector.yaml down
 ```
+
+---
+
+### ### Collector: App → Collector → Jaeger (traces) + Prometheus (metrics) + Loki (logs)
+
+Uncomment  the lines from otelcol-config.yml to enable the Loki exporter 
