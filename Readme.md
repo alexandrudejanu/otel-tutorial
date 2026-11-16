@@ -100,7 +100,7 @@ Then go to [Prometheus](http://localhost:9090/) and run the query `http_server_d
 
 ### Collector: App → Collector → Jaeger (traces) + Prometheus (metrics)
 
-* The collector is a headless service: it receives, processes, and exports data
+* The collector is a headless service: it receives, processes, and exports data and it is configured via [otelcol-config.yml](https://github.com/open-telemetry/opentelemetry-demo/blob/main/src/otel-collector/otelcol-config.yml)
 
 ```bash
 # start jaeger and prometheus as before, 
