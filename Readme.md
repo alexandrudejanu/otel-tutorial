@@ -2,9 +2,12 @@
 
 ⚠️ Zero-code instrumentation adds the OpenTelemetry API and SDK capabilities to your application. 
 
-Generally, you run a set of applications in production and
-    * Your goal is to get telemetry out of them without touching their code.
-    * You want to collect traces, metrics, and logs from several services and send them off to your observability backend
+Generally, you run a set of applications in production and:
+
+    - Your goal is to get telemetry out of them without touching their code.
+    - You want to collect traces, metrics, and logs from several services and send them off to your observability backend
+
+Automatic instrumentation with Python uses a Python agent that can be attached to any Python application. This agent primarily uses **monkey patching** to modify library functions at runtime, allowing for the capture of telemetry data.
 
 ### Code Setup
 
