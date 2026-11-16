@@ -1,4 +1,10 @@
+### Overview
 
+⚠️ Zero-code instrumentation adds the OpenTelemetry API and SDK capabilities to your application. 
+
+Generally, you run a set of applications in production and
+    * Your goal is to get telemetry out of them without touching their code.
+    * You want to collect traces, metrics, and logs from several services and send them off to your observability backend
 
 ### Code Setup
 
@@ -11,13 +17,14 @@ uv add opentelemetry-instrumentation-flask opentelemetry-instrumentation-request
 # just sync
 uv sync
 
-# start the app
+# start the app vanilla
 OTEL_SERVICE_NAME=otel-tutorial \
 OTEL_TRACES_EXPORTER=console \
 OTEL_METRICS_EXPORTER=none \
 OTEL_LOGS_EXPORTER=none \
 uv run opentelemetry-instrument python app.py
 ```
+
 ### Otel SDK Setup
 
 * OTEL_SERVICE_NAME	Names your service. This is the label you’ll select in Jaeger. Without it you get unknown_service.
