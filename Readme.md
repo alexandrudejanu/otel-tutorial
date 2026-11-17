@@ -26,6 +26,19 @@ OTEL_TRACES_EXPORTER=console \
 OTEL_METRICS_EXPORTER=none \
 OTEL_LOGS_EXPORTER=none \
 uv run opentelemetry-instrument python app.py
+
+# start app as docker image
+# exports all three signals over OTLP, so the full collector stack must be running first
+docker run --rm -p 8080:8080 \
+  -e OTEL_SERVICE_NAME=otel-tutorial \
+  -e OTEL_TRACES_EXPORTER=otlp \
+  -e OTEL_METRICS_EXPORTER=otlp \
+  -e OTEL_LOGS_EXPORTER=otlp \
+  -e OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=true \
+  -e OTEL_PYTHON_LOG_LEVEL=info \
+  -e OTEL_METRIC_EXPORT_INTERVAL=5000 \
+  -e OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4317 \
+  dejanualex/otel-app:1.0
 ```
 
 ### Otel SDK Setup
@@ -135,7 +148,7 @@ docker compose -f docker-compose-otel-collector.yaml down
 
 ### Collector: App → Collector → Jaeger (traces) + Prometheus (metrics) + Loki (logs) + Grafana (UI)
 
-First uncomment lines in `otel-collector-config.yaml` to 
+First uncomment the lines marked `toogle comment` in `otel-collector-config.yaml` (the `otlphttp/loki` exporter and the `logs` pipeline) to enable log export to Loki.
 
 ```bash
 # start jaeger and prometheus, collector as before, 
@@ -153,7 +166,7 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317 \
 uv run opentelemetry-instrument python app.py
 
 # stop 
-docker compose -f docker-compose-otel-collector.yaml down
+docker compose -f docker-compose-otel-collector-full.yaml down
 ```
 Go to [Grafana](http://localhost:3000) and add Loki as datasource (Connections
 --> Add new connection http://loki:3100) and check logs (show logs from the otel-tutorial service whose message contains text_filter):

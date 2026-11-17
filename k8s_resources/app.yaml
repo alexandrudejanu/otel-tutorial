@@ -1,0 +1,86 @@
+# Flask app with zero-code instrumentation. The image's CMD is
+# `opentelemetry-instrument python app.py`; all telemetry config comes from the env below.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-app
+  namespace: otel-tutorial
+  labels:
+    app: otel-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: otel-app
+  template:
+    metadata:
+      labels:
+        app: otel-app
+    spec:
+      containers:
+        - name: otel-app
+          image: dejanualex/otel-app:1.0
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: OTEL_SERVICE_NAME
+              value: otel-tutorial
+            - name: OTEL_TRACES_EXPORTER
+              value: otlp
+            - name: OTEL_METRICS_EXPORTER
+              value: otlp
+            - name: OTEL_LOGS_EXPORTER
+              value: otlp
+            - name: OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED
+              value: "true"
+            - name: OTEL_PYTHON_LOG_LEVEL
+              value: info
+            - name: OTEL_METRIC_EXPORT_INTERVAL
+              value: "5000"
+            # All signals go to the collector (gRPC); it fans out to the backends.
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://otel-collector:4317
+            # Adds k8s context to every span/metric/log as resource attributes.
+            - name: K8S_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: K8S_NAMESPACE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: k8s.pod.name=$(K8S_POD_NAME),k8s.namespace.name=$(K8S_NAMESPACE_NAME)
+          # TCP probes on purpose: GET / calls an external site and would create a trace per probe.
+          readinessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-app
+  namespace: otel-tutorial
+spec:
+  type: ClusterIP
+  selector:
+    app: otel-app
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
