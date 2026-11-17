@@ -14,4 +14,45 @@ Each stage adds one idea.
 
 5. **Loki and Grafana.** Logs turn on with `OTEL_LOGS_EXPORTER=otlp` and the two `OTEL_PYTHON_LOGGING_*` variables. They take the same single hop to the collector, which adds a logs pipeline to Loki. Grafana is only the UI. The query `{service_name="otel-tutorial"} |= `text_filter`` reads the stream for this service and keeps lines that contain that string.
 
+## How the services communicate (stage 5)
+
+```
+                    traces + metrics + logs
+┌───────────┐       OTLP gRPC :4317        ┌────────────────┐
+│ Flask app │ ───────────────────────────► │ OTel Collector │
+│   :8080   │                              └───────┬────────┘
+└─────┬─────┘                                      │
+      │ HTTPS                 ┌────────────────────┼─────────────────────┐
+      ▼                       │ traces             │ metrics             │ logs
+ httpstatus.io                │ OTLP gRPC :4317    │ OTLP HTTP :9090     │ OTLP HTTP :3100
+                              ▼                    ▼ /api/v1/otlp        ▼ /otlp
+                       ┌────────────┐       ┌────────────┐        ┌────────────┐
+                       │   Jaeger   │       │ Prometheus │        │    Loki    │
+                       │ UI :16686  │       │ UI :9090   │        │   :3100    │
+                       └────────────┘       └────────────┘        └─────▲──────┘
+                                                                        │ LogQL queries
+                                                                  ┌─────┴──────┐
+                                                                  │  Grafana   │
+                                                                  │   :3000    │
+                                                                  └────────────┘
+```
+
+The app only ever talks to the collector. The collector is the only thing that knows where the backends are. Grafana reads from Loki and doesn't receive any telemetry itself.
+
 The arc: see the data, send one signal to one backend, send two signals to two backends, put a collector in front so the app has a single destination, then add the third signal without touching that destination.
+
+```bash
+kubectl apply -f k8s_resources/00-namespace.yaml
+kubectl apply -f k8s_resources/jaeger.yaml -f k8s_resources/prometheus.yaml -f k8s_resources/loki.yaml
+kubectl -n otel-tutorial wait --for=condition=available deploy/jaeger deploy/prometheus deploy/loki --timeout=120s
+kubectl apply -f k8s_resources/otel-collector.yaml -f k8s_resources/grafana.yaml
+kubectl -n otel-tutorial wait --for=condition=available deploy/otel-collector --timeout=60s
+kubectl apply -f k8s_resources/app.yaml
+
+# generate traffic
+kubectl -n otel-tutorial port-forward svc/otel-app 8080:8080
+for i in {1..20}; do curl -s localhost:8080 >/dev/null; sleep 0.2; done
+
+# check grafana for http_server_duration_milliseconds_count
+kubectl -n otel-tutorial port-forward  services/grafana 3000:3000 
+```
