@@ -22,7 +22,7 @@ services:
     depends_on:
       - jaeger
       - prometheus
-      - loki          # uncomment when Loki moves into compose
+      - loki
 
   loki:
     image: grafana/loki:3.4.2
