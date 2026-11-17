@@ -49,10 +49,14 @@ Helm generates the webhook TLS certificate, so cert-manager isn't needed. The ce
 | 6 | `06-instrumentation.yaml` | `Instrumentation`, which exports to `otel-collector:4318` | **Must exist before the app's pods** |
 | 7 | `07-go-app.yaml` | `go-hello` Deployment and Service (8888), with the inject annotations | The webhook adds the sidecar when the pod is created |
 
-The file prefixes match this order, so one command does it:
+
 
 ```bash
+# the file prefixes match this order, so one command does it
 kubectl apply -f k8s-collector-operator/
+
+# check
+kubectl -n otel-tutorial get po
 ```
 
 Only two steps have a hard order: the namespace first, and step 6 before step 7. The operator only changes a pod when it's created. If the app started before the `Instrumentation` existed, recreate its pods:
