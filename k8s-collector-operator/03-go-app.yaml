@@ -1,0 +1,58 @@
+# Vanilla Go app: the image contains no OpenTelemetry code or SDK.
+# The two annotations make the operator inject an eBPF sidecar that traces /app/main.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: go-hello
+  namespace: otel-tutorial
+  labels:
+    app: go-hello
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: go-hello
+  template:
+    metadata:
+      labels:
+        app: go-hello
+      annotations:
+        instrumentation.opentelemetry.io/inject-go: "true"
+        # Full path of the Go binary inside the app container (the image ENTRYPOINT).
+        instrumentation.opentelemetry.io/otel-go-auto-target-exe: "/app/main"
+    spec:
+      containers:
+        - name: go-hello
+          image: dejanualex/go-hello:1.0
+          ports:
+            - name: http
+              containerPort: 8888
+          readinessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 20m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: go-hello
+  namespace: otel-tutorial
+spec:
+  type: ClusterIP
+  selector:
+    app: go-hello
+  ports:
+    - name: http
+      port: 8888
+      targetPort: http
