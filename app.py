@@ -15,4 +15,5 @@ def index():
 
 if __name__ == "__main__":
     print("Starting Flask server on port 8080...")
-    app.run(port=8080)
+    # 0.0.0.0 so a published container port is reachable from the host.
+    app.run(host="0.0.0.0", port=8080)
