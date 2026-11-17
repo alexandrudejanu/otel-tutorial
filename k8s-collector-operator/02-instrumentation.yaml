@@ -1,0 +1,24 @@
+# Tells the operator how to instrument annotated pods in this namespace.
+# For Go it injects an eBPF sidecar (no change to the app image or binary).
+apiVersion: opentelemetry.io/v1alpha1
+kind: Instrumentation
+metadata:
+  name: default
+  namespace: otel-tutorial
+spec:
+  exporter:
+    # Go auto-instrumentation exports OTLP over HTTP -> port 4318, not 4317.
+    endpoint: http://otel-collector:4318
+  propagators:
+    - tracecontext
+    - baggage
+  sampler:
+    type: parentbased_traceidratio
+    argument: "1"   # sample everything; fine for a tutorial
+  go:
+    resourceRequirements:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        memory: 256Mi

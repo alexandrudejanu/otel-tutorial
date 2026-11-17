@@ -14,6 +14,8 @@ Each stage adds one idea.
 
 5. **Loki and Grafana.** Logs turn on with `OTEL_LOGS_EXPORTER=otlp` and the two `OTEL_PYTHON_LOGGING_*` variables. They take the same single hop to the collector, which adds a logs pipeline to Loki. Grafana is only the UI. The query `{service_name="otel-tutorial"} |= `text_filter`` reads the stream for this service and keeps lines that contain that string.
 
+---
+
 ## How the services communicate (stage 5)
 
 ```
@@ -49,6 +51,13 @@ kubectl apply -f k8s_resources/otel-collector.yaml -f k8s_resources/grafana.yaml
 kubectl -n otel-tutorial wait --for=condition=available deploy/otel-collector --timeout=60s
 kubectl apply -f k8s_resources/app.yaml
 
+# To get data without the collector, point the app straight at the backends
+kubectl -n otel-tutorial set env deploy/otel-app \
+    OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317 \
+    OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=http://prometheus:9090/api/v1/otlp/v1/metrics \
+    OTEL_EXPORTER_OTLP_METRICS_PROTOCOL=http/protobuf \
+    OTEL_LOGS_EXPORTER=none
+
 # generate traffic
 kubectl -n otel-tutorial port-forward svc/otel-app 8080:8080
 for i in {1..20}; do curl -s localhost:8080 >/dev/null; sleep 0.2; done
@@ -56,3 +65,43 @@ for i in {1..20}; do curl -s localhost:8080 >/dev/null; sleep 0.2; done
 # check grafana for http_server_duration_milliseconds_count
 kubectl -n otel-tutorial port-forward  services/grafana 3000:3000 
 ```
+
+---
+
+Collector as operator
+
+Why cert-manager is needed
+
+  The operator works through admission webhooks. When a pod is created, the Kubernetes API server calls the operator's mutating webhook. That webhook is what adds the Go eBPF sidecar and sets the OTEL_* variables. The operator also runs webhooks that check
+  OpenTelemetryCollector and Instrumentation resources when you apply them.
+
+  The API server will only call webhooks over HTTPS, and only if it trusts the webhook's certificate:
+
+  kubectl apply go-hello Deployment
+        │
+        ▼
+  API server ──HTTPS──► operator webhook (mutates the pod: adds the sidecar)
+        │   checks the webhook's TLS cert against the caBundle
+        │   stored in the MutatingWebhookConfiguration
+        ▼
+  pod created with the sidecar
+
+  So the operator needs a TLS certificate, and the webhook configurations need the matching CA. The operator's release manifest doesn't create these itself. It includes cert-manager Issuer and Certificate resources, and cert-manager then:
+  1. issues a self-signed certificate into a Secret that the operator mounts, and
+  2. copies the CA into the webhook configurations and the CRD conversion webhook (its cainjector component does this),
+  3. renews the certificate before it expires.
+
+  Without cert-manager, applying opentelemetry-operator.yaml fails on the Issuer and Certificate resources. Even if you got past that, the API server couldn't reach the webhooks, so no sidecar would be injected.
+
+  Doing it without cert-manager
+
+  cert-manager is a requirement of the plain manifest install, not of the operator. The Helm chart can generate the webhook certificate itself:
+
+  helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+  helm install opentelemetry-operator open-telemetry/opentelemetry-operator \
+    -n opentelemetry-operator-system --create-namespace \
+    --set admissionWebhooks.certManager.enabled=false \
+    --set admissionWebhooks.autoGenerateCert.enabled=true
+
+  The downside is that Helm creates the certificate at install and upgrade time and doesn't rotate it automatically, so it has to be renewed with a helm upgrade before it expires. cert-manager rotates it for you. For a tutorial cluster the Helm route is simpler: one
+  component instead of two.

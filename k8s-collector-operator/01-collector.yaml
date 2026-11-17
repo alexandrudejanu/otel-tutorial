@@ -1,0 +1,58 @@
+# Collector managed by the OpenTelemetry Operator.
+# The operator turns this into a Deployment + ConfigMap + Services named "<name>-collector",
+# so name "otel" gives Deployment/Service "otel-collector" (:4317 gRPC, :4318 HTTP).
+# Don't name it "otel-collector" -- that would produce "otel-collector-collector".
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: otel
+  namespace: otel-tutorial
+spec:
+  mode: deployment
+  replicas: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 512Mi
+  config:
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+
+    processors:
+      batch: {}
+
+    exporters:
+      otlp/jaeger:
+        endpoint: jaeger:4317
+        tls:
+          insecure: true
+      otlphttp/prometheus:
+        endpoint: http://prometheus:9090/api/v1/otlp
+      otlphttp/loki:
+        endpoint: http://loki:3100/otlp
+      debug:
+        verbosity: basic
+
+    service:
+      pipelines:
+        # Go eBPF auto-instrumentation produces traces; metrics/logs pipelines are kept
+        # so other (e.g. Python) workloads can share this collector.
+        traces:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [otlp/jaeger, debug]
+        metrics:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [otlphttp/prometheus]
+        logs:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [otlphttp/loki, debug]
