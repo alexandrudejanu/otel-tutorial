@@ -117,6 +117,8 @@ Then go to [Prometheus](http://localhost:9090/) and run the query `http_server_d
 # + the collector
 docker compose -f docker-compose-otel-collector.yaml up -d
 
+# OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+# which now lands on the collector instead of Jaeger or Prometheus.
 OTEL_SERVICE_NAME=otel-tutorial \
 OTEL_TRACES_EXPORTER=otlp \
 OTEL_METRICS_EXPORTER=otlp \
